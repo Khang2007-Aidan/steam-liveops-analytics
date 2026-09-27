@@ -1,0 +1,180 @@
+"""
+Thu thap gia hien tai va tin tuc / ban cap nhat cua tung game.
+
+Chay 1 lan moi ngay. Ghi ra hai file:
+    data/prices/2026-09-26.csv   gia va muc giam gia hom do
+    data/news/2026-09-26.csv     cac tin moi nhat cua tung game
+
+File news la nguyen lieu de gan nhan loai su kien sau nay:
+che do choi moi / nhan vat moi / hop tac / mua moi / giai dau / chi can bang.
+Viec gan nhan lam thu cong, khong tu dong, vi may khong doc duoc y do van hanh.
+"""
+
+import csv
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import requests
+
+DIM_FILE = Path("data/dim_game.csv")
+PRICE_DIR = Path("data/prices")
+NEWS_DIR = Path("data/news")
+
+STORE_URL = "https://store.steampowered.com/api/appdetails"
+NEWS_URL = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
+
+SLEEP_SECONDS = 1.5
+TIMEOUT_SECONDS = 20
+MAX_RETRIES = 3
+NEWS_PER_GAME = 20
+NEWS_MAX_LENGTH = 600
+
+PRICE_COLUMNS = [
+    "collected_at_utc",
+    "appid",
+    "price_final_vnd",
+    "price_initial_vnd",
+    "discount_percent",
+]
+NEWS_COLUMNS = [
+    "collected_at_utc",
+    "appid",
+    "news_gid",
+    "published_at_utc",
+    "feedlabel",
+    "title",
+    "url",
+    "snippet",
+]
+
+
+def read_games(path):
+    if not path.exists():
+        print(f"Chua co {path}. Chay scripts/verify_games.py truoc.")
+        sys.exit(1)
+    with open(path, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def get_json(url, params, session):
+    """Goi API co thu lai. Tra ve JSON hoac None."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = session.get(url, params=params, timeout=TIMEOUT_SECONDS)
+            response.raise_for_status()
+            return response.json()
+        except (requests.RequestException, ValueError):
+            time.sleep(2**attempt)
+    return None
+
+
+def fetch_price(appid, session):
+    """Lay gia hien tai. Game mien phi tra ve gia 0, khong phai loi."""
+    payload = get_json(
+        STORE_URL,
+        {"appids": appid, "cc": "vn", "l": "english", "filters": "price_overview"},
+        session,
+    )
+    if not payload:
+        return None
+
+    entry = payload.get(str(appid)) or {}
+    if not entry.get("success"):
+        return None
+
+    data = entry.get("data") or {}
+    price = data.get("price_overview") or {}
+
+    return {
+        "price_final_vnd": price.get("final", 0) // 100,
+        "price_initial_vnd": price.get("initial", 0) // 100,
+        "discount_percent": price.get("discount_percent", 0),
+    }
+
+
+def fetch_news(appid, session):
+    """Lay cac tin moi nhat cua game. Tra ve list, co the rong."""
+    payload = get_json(
+        NEWS_URL,
+        {
+            "appid": appid,
+            "count": NEWS_PER_GAME,
+            "maxlength": NEWS_MAX_LENGTH,
+        },
+        session,
+    )
+    if not payload:
+        return []
+    return (payload.get("appnews") or {}).get("newsitems") or []
+
+
+def clean_text(text):
+    """Bo xuong dong va khoang trang thua de CSV khong bi vo dong."""
+    return " ".join((text or "").split())
+
+
+def open_writer(path, columns):
+    """Mo file de ghi them, tu viet header neu file chua ton tai."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    need_header = not path.exists()
+    handle = open(path, "a", newline="", encoding="utf-8")
+    writer = csv.DictWriter(handle, fieldnames=columns)
+    if need_header:
+        writer.writeheader()
+    return handle, writer
+
+
+def main():
+    collected_at = datetime.now(timezone.utc)
+    stamp = collected_at.isoformat(timespec="seconds")
+    day = collected_at.strftime("%Y-%m-%d")
+
+    games = read_games(DIM_FILE)
+
+    price_file, price_writer = open_writer(PRICE_DIR / f"{day}.csv", PRICE_COLUMNS)
+    news_file, news_writer = open_writer(NEWS_DIR / f"{day}.csv", NEWS_COLUMNS)
+
+    price_ok = 0
+    news_rows = 0
+
+    with requests.Session() as session, price_file, news_file:
+        for game in games:
+            appid = game["appid"]
+
+            price = fetch_price(appid, session)
+            if price is not None:
+                price_writer.writerow(
+                    {"collected_at_utc": stamp, "appid": appid, **price}
+                )
+                price_ok += 1
+            time.sleep(SLEEP_SECONDS)
+
+            for item in fetch_news(appid, session):
+                published = datetime.fromtimestamp(
+                    item.get("date", 0), tz=timezone.utc
+                ).isoformat(timespec="seconds")
+
+                news_writer.writerow(
+                    {
+                        "collected_at_utc": stamp,
+                        "appid": appid,
+                        # news_gid la ma duy nhat cua tin, dung de loc trung sau nay
+                        "news_gid": item.get("gid", ""),
+                        "published_at_utc": published,
+                        "feedlabel": clean_text(item.get("feedlabel")),
+                        "title": clean_text(item.get("title")),
+                        "url": item.get("url", ""),
+                        "snippet": clean_text(item.get("contents"))[:500],
+                    }
+                )
+                news_rows += 1
+            time.sleep(SLEEP_SECONDS)
+
+    print(f"{stamp}  gia: {price_ok}/{len(games)} game   tin: {news_rows} dong")
+    return 0 if price_ok > 0 else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,42 @@
+name: Thu thap nguoi choi
+
+on:
+  schedule:
+    # 4 lan moi ngay, cach nhau 6 tieng (gio UTC).
+    # Dat phut 17 thay vi 0 de tranh luc GitHub qua tai.
+    - cron: "17 1,7,13,19 * * *"
+  workflow_dispatch: # cho phep bam chay tay tu tab Actions
+
+permissions:
+  contents: write # can quyen nay de workflow commit du lieu vao repo
+
+concurrency:
+  group: steam-collect # khong cho hai workflow ghi cung luc, tranh dung push
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cai thu vien
+        run: pip install -r requirements.txt
+
+      - name: Chay script
+        run: python scripts/collect_players.py
+
+      - name: Luu du lieu vao repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # Neu khong co gi thay doi thi thoat em dep, khong bao loi
+          git diff --staged --quiet && echo "Khong co du lieu moi" && exit 0
+          git commit -m "Du lieu nguoi choi $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git pull --rebase
+          git push
