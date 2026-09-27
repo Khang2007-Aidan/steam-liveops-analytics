@@ -1,0 +1,29 @@
+appid,name,is_free,type,release_date,developer,publisher,genres,price_vnd,available_vn,verified_at_utc
+570,Dota 2,True,game,"9 Jul, 2013",Valve,Valve,Action; Strategy; Free To Play,0,True,2026-09-27T08:20:58+00:00
+730,Counter-Strike 2,True,game,"21 Aug, 2012",Valve,Valve,Action; Free To Play,0,True,2026-09-27T08:20:58+00:00
+440,Team Fortress 2,True,game,"10 Oct, 2007",Valve,Valve,Action; Free To Play,0,True,2026-09-27T08:20:58+00:00
+1172470,Apex Legends™,True,game,"4 Nov, 2020",Respawn,Electronic Arts,Action; Adventure; Free To Play,0,True,2026-09-27T08:20:58+00:00
+230410,Warframe,True,game,"25 Mar, 2013",Digital Extremes,Digital Extremes,Action; RPG; Free To Play,0,True,2026-09-27T08:20:58+00:00
+238960,Path of Exile,True,game,"Oct 23, 2013",Grinding Gear Games,Grinding Gear Games,Action; Adventure; Indie; Massively Multiplayer; RPG; Free To Play,0,False,2026-09-27T08:20:58+00:00
+1085660,Destiny 2,True,game,"1 Oct, 2019",Bungie,Bungie,Action; Adventure; Free To Play,0,True,2026-09-27T08:20:58+00:00
+578080,PUBG: BATTLEGROUNDS,True,game,"21 Dec, 2017",PUBG Corporation,"KRAFTON, Inc.",Action; Adventure; Massively Multiplayer; Free To Play,0,True,2026-09-27T08:20:58+00:00
+1203220,NARAKA: BLADEPOINT,True,game,"Aug 11, 2021",24 Entertainment,NetEase Games ,Action; Adventure; Massively Multiplayer; Free To Play,0,False,2026-09-27T08:20:58+00:00
+236390,War Thunder,True,game,"15 Aug, 2013",Gaijin Entertainment,Gaijin Network Ltd,Action; Massively Multiplayer; Simulation; Free To Play,0,True,2026-09-27T08:20:58+00:00
+444090,Paladins®,True,game,"8 May, 2018",Evil Mojo Games,Hi-Rez Studios,Action; Adventure; Massively Multiplayer; Strategy; Free To Play,0,True,2026-09-27T08:20:58+00:00
+304930,Unturned,True,game,"7 Jul, 2017",Smartly Dressed Games,Smartly Dressed Games,Action; Adventure; Casual; Indie; Free To Play,0,True,2026-09-27T08:20:58+00:00
+1599340,Lost Ark,True,game,"Feb 11, 2022",Smilegate RPG,Amazon Game Studios,Action; Adventure; Massively Multiplayer; RPG; Free To Play,0,False,2026-09-27T08:20:58+00:00
+2073850,THE FINALS,True,game,"7 Dec, 2023",Embark Studios,Embark Studios,Action; Free To Play,0,True,2026-09-27T08:20:58+00:00
+2357570,Overwatch®,True,game,"10 Aug, 2023","Blizzard Entertainment, Inc.","Blizzard Entertainment, Inc.",Action; Free To Play,0,True,2026-09-27T08:20:58+00:00
+252490,Rust,False,game,"8 Feb, 2018",Facepunch Studios,Facepunch Studios,Action; Adventure; Indie; Massively Multiplayer; RPG,500000,True,2026-09-27T08:20:58+00:00
+381210,Dead by Daylight,False,game,"14 Jun, 2016",Behaviour Interactive Inc.,Behaviour Interactive Inc.,Action,340000,True,2026-09-27T08:20:58+00:00
+105600,Terraria,False,game,"16 May, 2011",Re-Logic,Re-Logic,Action; Adventure; Indie; RPG,142000,True,2026-09-27T08:20:58+00:00
+322330,Don't Starve Together,False,game,"21 Apr, 2016",Klei Entertainment,Klei Entertainment,Action; Adventure; Indie; RPG; Simulation; Strategy,165000,True,2026-09-27T08:20:58+00:00
+892970,Valheim,False,game,"9 Sep, 2026",Iron Gate AB,Coffee Stain Publishing,Action; Adventure; Indie; RPG,385000,True,2026-09-27T08:20:58+00:00
+1245620,ELDEN RING,False,game,"24 Feb, 2022","FromSoftware, Inc.","FromSoftware, Inc.; Bandai Namco Entertainment",Action; RPG,990000,True,2026-09-27T08:20:58+00:00
+271590,Grand Theft Auto V Legacy,False,game,"13 Apr, 2015",Rockstar North,Rockstar Games,Action; Adventure,0,True,2026-09-27T08:20:58+00:00
+1091500,Cyberpunk 2077,False,game,"9 Dec, 2020",CD PROJEKT RED,CD PROJEKT RED,RPG,990000,True,2026-09-27T08:20:58+00:00
+553850,HELLDIVERS™ 2,False,game,"Feb 8, 2024",Arrowhead Game Studios,PlayStation Publishing LLC,Action,0,False,2026-09-27T08:20:58+00:00
+1623730,Palworld,False,game,"9 Jul, 2026",Pocketpair,Pocketpair,Action; Adventure; Indie; RPG,385000,True,2026-09-27T08:20:58+00:00
+227300,Euro Truck Simulator 2,False,game,"12 Oct, 2012",SCS Software,SCS Software,Indie; Simulation,280000,True,2026-09-27T08:20:58+00:00
+359550,Tom Clancy's Rainbow Six Siege,True,game,"1 Dec, 2015",Ubisoft Montreal,Ubisoft,Action; Free To Play,0,True,2026-09-27T08:20:58+00:00
+1966720,Lethal Company,False,game,"23 Oct, 2023",Zeekerss,Zeekerss,Action; Adventure; Indie; Early Access,142000,True,2026-09-27T08:20:58+00:00

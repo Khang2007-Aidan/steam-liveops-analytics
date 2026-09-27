@@ -34,8 +34,9 @@ NEWS_MAX_LENGTH = 600
 PRICE_COLUMNS = [
     "collected_at_utc",
     "appid",
-    "price_final_vnd",
-    "price_initial_vnd",
+    "country_code",
+    "price_final",
+    "price_initial",
     "discount_percent",
 ]
 NEWS_COLUMNS = [
@@ -70,17 +71,42 @@ def get_json(url, params, session):
     return None
 
 
-def fetch_price(appid, session):
-    """Lay gia hien tai. Game mien phi tra ve gia 0, khong phai loi."""
+def pick_entry(payload, appid):
+    """
+    Steam KHONG phai luc nao cung dat khoa bang appid minh hoi.
+    Hoi 570 co the nhan ve {"2120612": {...}}. Payload luon chi co mot phan tu,
+    nen lay phan tu do ra la chac an nhat.
+    """
+    entry = payload.get(str(appid))
+    if entry is not None:
+        return entry
+    for value in payload.values():
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def fetch_price(appid, session, country_code):
+    """
+    Lay gia hien tai tai mot cua hang.
+
+    Game mien phi tra ve gia 0, do khong phai loi.
+    Gia luon kem country_code vi 100000 dong va 100000 do la hai chuyen khac han.
+    """
     payload = get_json(
         STORE_URL,
-        {"appids": appid, "cc": "vn", "l": "english", "filters": "price_overview"},
+        {
+            "appids": appid,
+            "cc": country_code,
+            "l": "english",
+            "filters": "price_overview",
+        },
         session,
     )
     if not payload:
         return None
 
-    entry = payload.get(str(appid)) or {}
+    entry = pick_entry(payload, appid) or {}
     if not entry.get("success"):
         return None
 
@@ -88,8 +114,10 @@ def fetch_price(appid, session):
     price = data.get("price_overview") or {}
 
     return {
-        "price_final_vnd": price.get("final", 0) // 100,
-        "price_initial_vnd": price.get("initial", 0) // 100,
+        "country_code": country_code,
+        # price_overview tra ve don vi nho nhat cua tien te, chia 100
+        "price_final": price.get("final", 0) // 100,
+        "price_initial": price.get("initial", 0) // 100,
         "discount_percent": price.get("discount_percent", 0),
     }
 
@@ -143,7 +171,11 @@ def main():
         for game in games:
             appid = game["appid"]
 
-            price = fetch_price(appid, session)
+            # Game khong ban o cua hang VN thi hoi cua hang US, neu khong se
+            # khong bao gio co dong gia nao cho no.
+            country_code = "vn" if game.get("available_vn") != "False" else "us"
+
+            price = fetch_price(appid, session, country_code)
             if price is not None:
                 price_writer.writerow(
                     {"collected_at_utc": stamp, "appid": appid, **price}

@@ -32,7 +32,8 @@ luận chỉ nói về số người chơi đồng thời quan sát được tr�
 ```
 data/
   games_seed.csv        appid do nguoi viet tay
-  dim_game.csv          bang DIM: ten, the loai, mien phi hay tra phi
+  dim_game.csv          bang DIM: ten, the loai, mien phi hay tra phi,
+                        co ban o cua hang VN hay khong
   players/YYYY-MM-DD.csv  bang FACT: thoi diem, appid, so nguoi choi
   prices/YYYY-MM-DD.csv   gia va muc giam gia theo ngay
   news/YYYY-MM-DD.csv     tin tuc va ban cap nhat, nguyen lieu de gan nhan su kien
@@ -68,6 +69,11 @@ Lưu ý: GitHub tắt workflow theo lịch nếu repo không có hoạt động 
 ngày. Mỗi tháng vào kiểm tra một lần.
 
 ## Nguồn dữ liệu
+
+Một số game không bán ở cửa hàng Steam Việt Nam (Path of Exile ở Đông Nam Á do
+Garena phát hành riêng, Lost Ark, NARAKA, HELLDIVERS 2). Với những game đó, cột
+`available_vn` ghi `False` và giá được lấy từ cửa hàng Mỹ, kèm `country_code`
+trong bảng giá. Lượng người chơi không phụ thuộc khu vực nên không bị ảnh hưởng.
 
 Toàn bộ là API công khai của Steam, không cần khóa, không đụng thông tin cá nhân:
 `GetNumberOfCurrentPlayers`, `appdetails`, `GetNewsForApp`.

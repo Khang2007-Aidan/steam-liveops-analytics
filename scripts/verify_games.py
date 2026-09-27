@@ -35,6 +35,7 @@ COLUMNS = [
     "publisher",
     "genres",
     "price_vnd",
+    "available_vn",
     "verified_at_utc",
 ]
 
@@ -45,29 +46,100 @@ def read_seed(path):
         return list(csv.DictReader(f))
 
 
-def fetch_app_details(appid, session):
-    """Goi Store API cho mot game. Tra ve dict du lieu hoac None neu that bai."""
-    params = {"appids": appid, "cc": "vn", "l": "english"}
+def pick_entry(payload, appid):
+    """
+    Lay phan du lieu ra khoi payload cua Steam.
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = session.get(API_URL, params=params, timeout=TIMEOUT_SECONDS)
-            response.raise_for_status()
-            payload = response.json()
-        except (requests.RequestException, ValueError):
-            # Loi mang hoac JSON hong. Cho lau dan roi thu lai: 1s, 2s, 4s.
-            time.sleep(2**attempt)
-            continue
+    Steam KHONG phai luc nao cung dat khoa bang appid minh hoi.
+    Vi du hoi appid 570 thi no tra ve {"2120612": {...}}, ben trong moi co
+    "steam_appid": 570. Nen khong duoc tin khoa ngoai cung.
+    Payload luon chi co dung mot phan tu, lay phan tu do ra la chac an nhat.
+    """
+    entry = payload.get(str(appid))
+    if entry is not None:
+        return entry
 
-        entry = payload.get(str(appid))
-        if not entry or not entry.get("success"):
-            return None
-        return entry.get("data")
+    for value in payload.values():
+        if isinstance(value, dict):
+            return value
 
     return None
 
 
-def to_row(appid, data, verified_at):
+NOT_IN_STORE = "khong ban o cua hang nay"
+
+
+def fetch_app_details(appid, session):
+    """
+    Lay thong tin game, uu tien cua hang Viet Nam.
+
+    Mot so game khong ban o cua hang VN (vi du Path of Exile o Dong Nam A do
+    Garena phat hanh rieng), luc do Steam tra ve success=false. Khi do hoi lai
+    cua hang My de van lay duoc ten va the loai, dong thoi ghi nhan
+    available_vn=False. Do la du lieu that, khong phai loi.
+
+    Tra ve (data, available_vn, ly_do_that_bai).
+    """
+    data, reason = fetch_from_region(appid, session, "vn")
+    if data is not None:
+        return data, True, None
+
+    if reason != NOT_IN_STORE:
+        return None, None, reason
+
+    time.sleep(SLEEP_SECONDS)
+    data, reason = fetch_from_region(appid, session, "us")
+    if data is not None:
+        return data, False, None
+
+    return None, None, f"khong co o ca VN lan US: {reason}"
+
+
+def fetch_from_region(appid, session, country_code):
+    """
+    Goi Store API cho mot game tai mot cua hang cu the.
+    Tra ve (data, ly_do_that_bai). Thanh cong thi ly_do la None.
+    """
+    params = {"appids": appid, "cc": country_code, "l": "english"}
+    reason = "chua goi"
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = session.get(API_URL, params=params, timeout=TIMEOUT_SECONDS)
+            if response.status_code >= 400:
+                # Giu lai ly do that bai. Nuot loi di la tu bit mat mui cua minh.
+                reason = f"HTTP {response.status_code}"
+                if response.status_code == 429:
+                    reason += " (bi chan toc do, can nghi lau hon)"
+                time.sleep(2**attempt)
+                continue
+            payload = response.json()
+        except requests.RequestException as e:
+            reason = f"loi mang: {type(e).__name__}"
+            time.sleep(2**attempt)
+            continue
+        except ValueError:
+            reason = "phan hoi khong phai JSON"
+            time.sleep(2**attempt)
+            continue
+
+        entry = pick_entry(payload, appid)
+        if entry is None:
+            return None, f"payload rong, khoa co: {list(payload)[:3]}"
+        if not entry.get("success"):
+            return None, NOT_IN_STORE
+
+        data = entry.get("data") or {}
+        real_appid = data.get("steam_appid")
+        if real_appid is not None and str(real_appid) != str(appid):
+            return None, f"appid tra ve la {real_appid}, khong khop"
+
+        return data, None
+
+    return None, reason
+
+
+def to_row(appid, data, available_vn, verified_at):
     """Bien JSON cua Steam thanh mot dong phang de ghi vao CSV."""
     price = data.get("price_overview") or {}
     genres = data.get("genres") or []
@@ -82,8 +154,10 @@ def to_row(appid, data, verified_at):
         "developer": "; ".join(data.get("developers") or []),
         "publisher": "; ".join(data.get("publishers") or []),
         "genres": "; ".join(g.get("description", "") for g in genres),
-        # price_overview tra ve don vi nho nhat, VND thi chia 100
-        "price_vnd": price.get("initial", 0) // 100 if price else 0,
+        # price_overview tra ve don vi nho nhat, VND thi chia 100.
+        # Game khong ban o VN thi khong co gia VND, de 0.
+        "price_vnd": price.get("initial", 0) // 100 if (price and available_vn) else 0,
+        "available_vn": available_vn,
         "verified_at_utc": verified_at,
     }
 
@@ -101,17 +175,20 @@ def main():
             appid = row["appid"].strip()
             guess = row["ghi_chu"].strip()
 
-            data = fetch_app_details(appid, session)
+            data, available_vn, reason = fetch_app_details(appid, session)
             if data is None:
-                failures.append((appid, guess))
-                print(f"[{i}/{len(seed_rows)}] THAT BAI  {appid}  ({guess})")
+                failures.append((appid, guess, reason))
+                print(f"[{i}/{len(seed_rows)}] THAT BAI  {appid}  ({guess})  -> {reason}")
             else:
-                record = to_row(appid, data, verified_at)
+                record = to_row(appid, data, available_vn, verified_at)
                 results.append(record)
 
                 official = record["name"]
                 free_tag = "F2P" if record["is_free"] else "tra phi"
-                print(f"[{i}/{len(seed_rows)}] OK  {appid}  {official}  [{free_tag}]")
+                vn_tag = "" if available_vn else "  [KHONG BAN O VN]"
+                print(
+                    f"[{i}/{len(seed_rows)}] OK  {appid}  {official}  [{free_tag}]{vn_tag}"
+                )
 
                 # Canh bao neu ten chinh thuc khac xa ghi chu tay
                 if guess.lower()[:8] not in official.lower():
@@ -126,9 +203,13 @@ def main():
         writer.writerows(results)
 
     free_count = sum(1 for r in results if r["is_free"])
+    no_vn = [r for r in results if not r["available_vn"]]
     print("\n" + "=" * 60)
     print(f"Ghi {len(results)} game vao {DIM_FILE}")
     print(f"  mien phi: {free_count}   tra phi: {len(results) - free_count}")
+    print(f"  khong ban o cua hang VN: {len(no_vn)}")
+    for r in no_vn:
+        print(f"    {r['appid']}  {r['name']}")
 
     if mismatches:
         print("\nTEN KHONG KHOP, kiem tra lai appid:")
@@ -137,8 +218,8 @@ def main():
 
     if failures:
         print("\nKHONG LAY DUOC:")
-        for appid, guess in failures:
-            print(f"  {appid} ({guess})")
+        for appid, guess, reason in failures:
+            print(f"  {appid} ({guess}): {reason}")
         return 1
 
     return 0
