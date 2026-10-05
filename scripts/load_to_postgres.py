@@ -163,11 +163,16 @@ def load_news(cursor):
         for r in read_csv(path):
             if not r.get("news_gid"):
                 continue
+            # File news cu (truoc 29/09) khong co feedname va feed_type,
+            # .get() tra ve None, cot trong DB de trong.
+            feed_type = r.get("feed_type")
             records.append(
                 (
                     r["news_gid"],
                     to_int(r["appid"]),
                     r["published_at_utc"],
+                    r.get("feedname") or None,
+                    to_int(feed_type, None) if feed_type else None,
                     r.get("feedlabel") or None,
                     r.get("title") or None,
                     r.get("url") or None,
@@ -180,11 +185,17 @@ def load_news(cursor):
         cursor,
         """
         INSERT INTO news_item (
-            news_gid, appid, published_at, feedlabel,
+            news_gid, appid, published_at, feedname, feed_type, feedlabel,
             title, url, snippet, first_seen_at
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (news_gid) DO NOTHING
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        -- Truoc day la DO NOTHING. Doi sang DO UPDATE de lan nap nay dien
+        -- duoc 2 cot moi vao nhung dong da co san trong DB.
+        -- COALESCE giu gia tri cu neu file moi khong co du lieu, nen khong
+        -- bao gio xoa mat thu da co.
+        ON CONFLICT (news_gid) DO UPDATE SET
+            feedname  = COALESCE(EXCLUDED.feedname,  news_item.feedname),
+            feed_type = COALESCE(EXCLUDED.feed_type, news_item.feed_type)
         """,
         records,
     )

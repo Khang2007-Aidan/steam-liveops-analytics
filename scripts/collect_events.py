@@ -28,8 +28,17 @@ NEWS_URL = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
 SLEEP_SECONDS = 1.5
 TIMEOUT_SECONDS = 20
 MAX_RETRIES = 3
+
+# So tin hoi moi game moi lan chay.
+# Ly do chon 20: script nay chay 1 lan/ngay, chi can lon hon so thong bao mot
+# game dang trong 1 ngay. Quan sat 27-28/09: 4 tin moi tren TAT CA 28 game.
+# Neu co game nao tra ve dung 20 thi script se CANH BAO o cuoi, luc do phai
+# tang so nay len. Khong doan, do roi bao.
 NEWS_PER_GAME = 20
-NEWS_MAX_LENGTH = 600
+
+# 0 = khong cat noi dung tin. Truoc day de 600 ky tu, lam mat phan cuoi cua
+# nhung thong bao dai. Tieu de khong bao gio bi cat.
+NEWS_MAX_LENGTH = 0
 
 PRICE_COLUMNS = [
     "collected_at_utc",
@@ -44,6 +53,8 @@ NEWS_COLUMNS = [
     "appid",
     "news_gid",
     "published_at_utc",
+    "feedname",
+    "feed_type",
     "feedlabel",
     "title",
     "url",
@@ -166,6 +177,7 @@ def main():
 
     price_ok = 0
     news_rows = 0
+    at_ceiling = []
 
     with requests.Session() as session, price_file, news_file:
         for game in games:
@@ -183,7 +195,13 @@ def main():
                 price_ok += 1
             time.sleep(SLEEP_SECONDS)
 
-            for item in fetch_news(appid, session):
+            news_items = fetch_news(appid, session)
+
+            # Tra ve dung bang so da hoi nghia la co the con tin bi cat.
+            if len(news_items) == NEWS_PER_GAME:
+                at_ceiling.append(game["name"])
+
+            for item in news_items:
                 published = datetime.fromtimestamp(
                     item.get("date", 0), tz=timezone.utc
                 ).isoformat(timespec="seconds")
@@ -195,6 +213,11 @@ def main():
                         # news_gid la ma duy nhat cua tin, dung de loc trung sau nay
                         "news_gid": item.get("gid", ""),
                         "published_at_utc": published,
+                        # feedname va feed_type la ma may doc, dung de phan loai
+                        # nguon chinh thuc hay bao chi. feedlabel chi la nhan
+                        # hien thi cho nguoi doc.
+                        "feedname": item.get("feedname", ""),
+                        "feed_type": item.get("feed_type", ""),
                         "feedlabel": clean_text(item.get("feedlabel")),
                         "title": clean_text(item.get("title")),
                         "url": item.get("url", ""),
@@ -205,6 +228,15 @@ def main():
             time.sleep(SLEEP_SECONDS)
 
     print(f"{stamp}  gia: {price_ok}/{len(games)} game   tin: {news_rows} dong")
+
+    if at_ceiling:
+        print(
+            f"CANH BAO: {len(at_ceiling)} game tra ve dung {NEWS_PER_GAME} tin, "
+            f"co the bi cat cut. Tang NEWS_PER_GAME len."
+        )
+        for name in at_ceiling:
+            print(f"  {name}")
+
     return 0 if price_ok > 0 else 1
 
 

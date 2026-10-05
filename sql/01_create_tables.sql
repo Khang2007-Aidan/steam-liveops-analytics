@@ -1,3 +1,4 @@
+
 -- Tao cau truc bang cho kho du lieu.
 -- Chay mot lan duy nhat, hoac chay lai nhieu lan cung khong sao
 -- vi deu co IF NOT EXISTS.
