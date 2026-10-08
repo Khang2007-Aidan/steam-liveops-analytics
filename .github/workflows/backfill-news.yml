@@ -1,0 +1,52 @@
+name: Thu bu tin tuc (chay tay)
+
+# Chi chay khi bam nut, khong co lich tu dong.
+# Ly do co file nay: nha mang Viet Nam chan ten mien Steam (DNS),
+# nen script goi Steam khong chay duoc tren may ca nhan nua.
+# Moi viec goi Steam deu chay tren may chu GitHub.
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "So tin hoi moi game"
+        required: true
+        type: number
+        default: 200
+
+permissions:
+  contents: write
+
+# Chung nhom voi 2 workflow thu thap, khong bao gio ghi cung luc.
+concurrency:
+  group: steam-collect
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cai thu vien
+        run: pip install -r requirements.txt
+
+      - name: Chay backfill
+        # So luong truyen qua bien moi truong, khong nhet thang vao lenh.
+        env:
+          COUNT: ${{ inputs.count }}
+        run: python scripts/backfill_news.py "$COUNT"
+
+      - name: Luu du lieu vao repo
+        # always(): du vai game that bai thi van luu phan da lay duoc.
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/news/
+          git diff --cached --quiet || git commit -m "Thu bu tin tuc"
+          git pull --rebase
+          git push
