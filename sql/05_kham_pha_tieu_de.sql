@@ -137,3 +137,90 @@ GROUP BY g.name, khuon_tieu_de
 HAVING COUNT(*) >= 10
 ORDER BY so_tin DESC
 LIMIT 50;
+
+
+-- =====================================================================
+-- Phep do 5, 02/10/2026: tong do phu cua khuon lap, thu nhieu nguong.
+--
+-- Phep do 4 bi cat o LIMIT 50 nen chi thay duoc 2.537 tin (31,9%).
+-- Lan nay dem HET, va thu 4 nguong khac nhau de biet con so 10
+-- tao chon co hop ly khong. Day goi la PHAN TICH DO NHAY
+-- (sensitivity analysis): doi mot tham so roi xem ket qua lech bao nhieu.
+-- Neu ket qua doi it -> tham so khong quan trong, chon sao cung duoc.
+-- Neu doi nhieu -> phai can nhac ky, va phai ghi ro trong bao cao.
+--
+-- WITH ... AS (...) goi la CTE (Common Table Expression) - bang tam
+-- chi ton tai trong cau truy van nay. Dung de chia bai toan ra tung
+-- buoc cho de doc, thay vi long subquery ba bon tang.
+--
+-- COUNT(*) FILTER (WHERE ...) la cach Postgres dem co dieu kien
+-- ngay trong mot dong SELECT, khoi phai chay 4 cau rieng.
+-- =====================================================================
+
+WITH khuon AS (
+    -- Buoc 1: tao khuon cho tung tin, giong phep do 4.
+    SELECT
+        n.appid,
+        regexp_replace(
+            regexp_replace(lower(n.title), '[0-9]+', '#', 'g'),
+            '(january|february|march|april|may|june|july|august|september|october|november|december)',
+            '<thang>', 'g'
+        ) AS k
+    FROM news_rule_label AS n
+),
+dem AS (
+    -- Buoc 2: moi khuon cua moi game lap bao nhieu lan.
+    SELECT appid, k, COUNT(*) AS n_lap
+    FROM khuon
+    GROUP BY appid, k
+)
+-- Buoc 3: cong so TIN (khong phai so khuon) o tung nguong.
+SELECT
+    SUM(n_lap)                                 AS tong_tin,
+    SUM(n_lap) FILTER (WHERE n_lap >= 3)       AS lap_tu_3_lan,
+    SUM(n_lap) FILTER (WHERE n_lap >= 5)       AS lap_tu_5_lan,
+    SUM(n_lap) FILTER (WHERE n_lap >= 10)      AS lap_tu_10_lan,
+    SUM(n_lap) FILTER (WHERE n_lap >= 20)      AS lap_tu_20_lan,
+    COUNT(*)                                   AS so_khuon_khac_nhau,
+    COUNT(*) FILTER (WHERE n_lap >= 10)        AS so_khuon_lap_tu_10
+FROM dem;
+
+
+-- =====================================================================
+-- Phep do 6, 02/10/2026: xuat 65 khuon lap de GAN NHAN TAY.
+--
+-- Quyet dinh dua tren phep do 5: chi co 65 khuon lap tu 10 lan tro len,
+-- phu 2.697 tin (34%). Doc tay 65 dong re hon viet code phan cum,
+-- va ket qua kiem chung duoc tung dong.
+--
+-- MIN(title) lay mot vi du that de biet khuon do trong doi hinh nao.
+-- tu_ngay / den_ngay cho biet chuyen muc do con chay hay da ngung.
+-- Mot chuyen muc ngung tu 2019 thi khong anh huong gi toi phan tich
+-- cua minh (du lieu CCU chi tu 09/2026 tro di).
+-- =====================================================================
+
+WITH khuon AS (
+    SELECT
+        n.appid,
+        n.title,
+        n.published_at,
+        regexp_replace(
+            regexp_replace(lower(n.title), '[0-9]+', '#', 'g'),
+            '(january|february|march|april|may|june|july|august|september|october|november|december)',
+            '<thang>', 'g'
+        ) AS k
+    FROM news_rule_label AS n
+)
+SELECT
+    g.name                       AS game,
+    k.k                          AS khuon,
+    COUNT(*)                     AS so_tin,
+    MIN(k.title)                 AS vi_du_tieu_de,
+    MIN(k.published_at)::date    AS tu_ngay,
+    MAX(k.published_at)::date    AS den_ngay,
+    ''                           AS nhan      -- cot de TRONG, may tu dien
+FROM khuon    AS k
+JOIN dim_game AS g ON g.appid = k.appid
+GROUP BY g.name, k.k
+HAVING COUNT(*) >= 10
+ORDER BY COUNT(*) DESC;

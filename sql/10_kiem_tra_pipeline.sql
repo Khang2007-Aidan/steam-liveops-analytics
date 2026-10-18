@@ -67,3 +67,24 @@ ORDER BY cach_lan_truoc DESC;
 -- Mong doi: khong co dong nao, hoac vai dong le te.
 -- GitHub Actions chay theo kieu "co gang het suc", tre vai chuc phut
 -- la binh thuong, bo han mot lan thi phai ghi vao NOTES.
+
+
+-- === Cau 4: gio goi API THAT, quy ve UTC ===
+--
+-- Ly do: giao dien GitHub hien gio theo mui gio trinh duyet, doc de nham.
+-- Bang cua minh luu kieu "timestamp with time zone", pgAdmin cung hien
+-- theo mui gio phien lam viec (+07). Muon doi chieu voi lich cron
+-- thi phai ep ve UTC.
+--
+-- AT TIME ZONE 'UTC' chuyen moc thoi gian sang gio UTC.
+--
+-- Lich dat: phut 17, cac gio 1, 7, 13, 19 (UTC).
+-- Doc cot "phut": neu deu >= 17 thi cron chay dung, chi bi tre.
+-- Neu co dong phut < 17 o dung gio da dat thi co chuyen la.
+
+SELECT DISTINCT
+    (collected_at AT TIME ZONE 'UTC')                      AS gio_utc,
+    EXTRACT(HOUR   FROM collected_at AT TIME ZONE 'UTC')   AS gio,
+    EXTRACT(MINUTE FROM collected_at AT TIME ZONE 'UTC')   AS phut
+FROM fact_player_count
+ORDER BY gio_utc;
